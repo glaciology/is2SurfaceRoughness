@@ -1,0 +1,7 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "cell_id": 58, "length_planar_km": 53210.604243517795, "area_planar_sqkm": 1724813.7981288799, "area_geodesic_sqkm": 1743564.343511302, "length_geodesic_km": 53059.865069200001 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -40.205375027141613, 78.058014555843172 ], [ -39.05378331493489, 80.353052490859312 ], [ -31.287037619285933, 80.124507966357257 ], [ -33.882586114334586, 77.873533442635306 ], [ -40.205375027141613, 78.058014555843172 ] ] ] } }
+]
+}
