@@ -1,9 +1,9 @@
 """
-median_map.py
-Author: Derek Pickell
+script: median_map.py
+author: Derek Pickell
 median map of RMS (roughness) over the full ICESat-2 mission period.
 
-Pipeline
+Pipeline:
 Pass 1  — per-tile: load_and_project() .csv -> (x_node, y_node, rms)
           Output: summaries_median_map/<tile>_nodes.parquet
           *only need to run once*
@@ -27,7 +27,6 @@ from matplotlib.colors import BoundaryNorm, LogNorm
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import cKDTree
 from shapely import vectorized
-
 from shared import BaseConfig, load_and_project, save_as_geotiff
 
 warnings.filterwarnings("ignore")
@@ -44,17 +43,17 @@ class Config(BaseConfig):
     GRID_RES = 1000                 # meters, if changed, no need to delete parquets
     IDW_K = 5                       # how many neighbors for IDW interpolation
     MAX_INTERP_DIST = 10000         # meters; beyond this, IDW weight = 0
-    SMOOTH_SIGMA  = 1             # Gaussian sigma in grid cells
+    SMOOTH_SIGMA = 1             # Gaussian sigma in grid cells
 
     # QUALITY SETTINGS: re-run Pass 2 + 3 if changed
     MIN_PASSES = 8                  # minimum observations per node (currently: using 8 for 500 m)
 
     # COLOR SCALE for plotting
-    COLORMAP_SCALE  = "log"         # "log" or "quantile"
+    COLORMAP_SCALE = "log"         # "log" or "quantile"
     N_QUANTILE_BINS = 25            # only used when COLORMAP_SCALE = "quantile"
 
     # DATA SOURCE
-    DATA_DIR     = Path("/Users/f005cb1/Documents/Github/is2Roughness/testData/")
+    DATA_DIR = Path("/Users/f005cb1/Documents/Github/is2Roughness/testData/")
 
     VALUE_OF_INTEREST = "RMS" #"RMS" #rms_sub_median #mean_surface #semivariogram_range
 
@@ -282,18 +281,18 @@ if __name__ == "__main__":
     print(f"Found {len(tiles)} tile(s)\n")
 
     # Pass 1: raw-obs parquets — skips existing
-    print("=== Pass 1: raw observations ===")
+    print("── Pass 1: raw observations ──")
     for tile in tiles:
         process_tile(tile, cfg)
 
     # Pass 2: node-median parquets — skips existing
     # Delete *_node_medians.parquet to re-run with new MIN_PASSES /
     # OUTLIER_MAD_THRESHOLD without re-reading the CSVs.
-    print("\n=== Pass 2: node medians ===")
+    print("\n── Pass 2: node medians ──")
     obs_parquets = sorted(cfg.OUTPUT_DIR.glob("*_nodes.parquet"))
     for p in obs_parquets:
         compute_tile_node_medians(p, cfg)
 
     # Pass 3: grid aggregation + plot — always re-runs, very fast
-    print("\n=== Pass 3: grid + map ===")
+    print("\n── Pass 3: grid + map ──")
     build_map(cfg)

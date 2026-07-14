@@ -1,6 +1,6 @@
 """
-temporal_map.py
-Author: Derek Pickell
+script: temporal_map.py
+author: Derek Pickell
 Multi-tile trend and seasonal pipeline for all of Greenland.
 
 Overview:
@@ -110,8 +110,7 @@ ELEV_BANDS = {
 
 
 ###  CONFIG HASH  ###
-# SEAS_AS_PCT_MEDIAN intentionally absent — it is a display flag only.
-# TREND_AS_PCT_MEDIAN same reason.
+# SEAS_AS_PCT_MEDIAN, TREND_AS_PCT_MEDIAN are display flags only.
 _HASH_KEYS = [
     "TIME_GAP_HOURS",
     "MIN_PASSES",
@@ -166,7 +165,7 @@ def _grids_to_df(X, Y, grids):
     return pd.DataFrame(rows)
 
 def _df_to_grids(cell_df, config=Config):
-    g    = int(config.GRID_RES)
+    g = int(config.GRID_RES)
     mode = getattr(config, "SIGNIFICANCE_MODE", "snr")
 
     ix = np.round(cell_df["x_cell"].values / g - 0.5).astype(np.int32)
@@ -305,7 +304,6 @@ def compute_tile_cell_stats(path, config=Config, h=None):
           f"{len(cell_df):,} cells  ->  {cell_out.name}")
     return cell_out
 
-
 ### PCT-OF-MEDIAN HELPERS ###
 def _as_pct_median(val_grid, node_median_rms_grid):
     """
@@ -334,10 +332,7 @@ def print_band_stats(pct_grid, elev_grid, label=""):
 
     all_vals = []
     for bname, (lo, hi, _) in ELEV_BANDS.items():
-        mask = (
-            (elev_grid >= lo) & (elev_grid < hi) &
-            np.isfinite(pct_grid) & np.isfinite(elev_grid)
-        )
+        mask = ((elev_grid >= lo) & (elev_grid < hi) & np.isfinite(pct_grid) & np.isfinite(elev_grid))
         n = int(mask.sum())
         if n == 0:
             print(f"  {bname:<{w}}  {'0':>6}")
@@ -384,8 +379,7 @@ def plot_pct_map(pct_grid, X, Y, title, config, filename):
     VMAX_PCT = 40.0   
     norm = mcolors.TwoSlopeNorm(vmin=-VMAX_PCT, vcenter=0, vmax=VMAX_PCT)
 
-    im = ax.pcolormesh(X, Y, pct_grid, cmap="RdBu_r", norm=norm,
-                       shading="auto", zorder=3)
+    im = ax.pcolormesh(X, Y, pct_grid, cmap="RdBu_r", norm=norm, shading="auto", zorder=3)
     cb = fig.colorbar(im, ax=ax, shrink=0.55, pad=0.02, aspect=28)
     cb.set_label("% of cell median RMS", fontsize=8)
     cb.ax.tick_params(labelsize=7)
@@ -438,20 +432,20 @@ def _load_elev_grid(cell_df, config, shape, iy_min, ix_min):
     with open(elev_pkl, "rb") as f:
         elev_lookup = pickle.load(f)
 
-    g         = int(config.GRID_RES)
+    g = int(config.GRID_RES)
     elev_grid = np.full(shape, np.nan, dtype=np.float32)
     ix = np.round(cell_df["x_cell"].values / g - 0.5).astype(np.int32)
     iy = np.round(cell_df["y_cell"].values / g - 0.5).astype(np.int32)
 
     for xi, yi in zip(ix, iy):
-        r   = int(yi - iy_min)
-        c   = int(xi - ix_min)
+        r = int(yi - iy_min)
+        c = int(xi - ix_min)
         key = (int(xi), int(yi))
         elev_grid[r, c] = elev_lookup.get(key, np.nan)
 
     print(f"  Elevation grid: {int(np.isfinite(elev_grid).sum()):,} cells with data")
-    return elev_grid
 
+    return elev_grid
 
 ### PASS 3 — GLOBAL CONCATENATION AND PLOTTING ###
 def run_analysis(config=Config):
@@ -526,24 +520,19 @@ def run_analysis(config=Config):
 
         print("\n── Seasonal contrast  (% of cell median RMS) ──")
         if elev_grid is not None:
-            print_band_stats(pct_sea, elev_grid,
-                             label="Seasonal diff (% median RMS)")
+            print_band_stats(pct_sea, elev_grid, label="Seasonal diff (% median RMS)")
         else:
             fin = pct_sea[np.isfinite(pct_sea)]
-            print(f"  n={len(fin):,}  mean={np.mean(fin):+.2f}%  "
-                  f"median={np.median(fin):+.2f}%  std={np.std(fin):.2f}%")
+            print(f"  n={len(fin):,}  mean={np.mean(fin):+.2f}%  median={np.median(fin):+.2f}%  std={np.std(fin):.2f}%")
 
         plot_pct_map(pct_sea, X, Y,
-            title=(f"Seasonal roughness contrast\n"
-                   f"(% of cell median RMS)  |  summer − winter  |  "
-                   f"{config.VALUE_OF_INTEREST}"),
-            config=config,
+            title=(f"Seasonal roughness contrast\n(% of cell median RMS)  |  summer − winter  |  {config.VALUE_OF_INTEREST}"), config=config,
             filename=(f"seas_pct_median_{config.VALUE_OF_INTEREST}_{config.GRID_RES}.png"),
         )
 
     # TREND_AS_PCT_MEDIAN 
     if trend_as_pct:
-        tr       = grids["trend"]
+        tr = grids["trend"]
         pct_trend = _as_pct_median(tr["val"], tr["node_median_rms"])
 
         print("\n── Trend  (% of cell median RMS per year) ──")
@@ -575,15 +564,15 @@ if __name__ == "__main__":
     raw_tiles = sorted(cfg.DATA_DIR.glob("*.csv"))
     print(f"Found {len(raw_tiles)} tile(s) in {cfg.DATA_DIR}\n")
 
-    print("=== Pass 1: raw observation export ===")
+    print("── Pass 1: raw observation export ──")
     for tile in raw_tiles:
         process_tile(tile, config=cfg)
 
-    print(f"\n=== Pass 2: node stats + cell aggregation  [hash: {h}] ===")
+    print(f"\n── Pass 2: node stats + cell aggregation  [hash: {h}] ──")
     nodes_parquets = sorted(
         cfg.OUTPUT_DIR.glob(f"*_nodes_{cfg.VALUE_OF_INTEREST}.parquet"))
     for p in nodes_parquets:
         compute_tile_cell_stats(p, config=cfg, h=h)
 
-    print(f"\n=== Pass 3: global plot  [hash: {h}] ===")
+    print(f"\n── Pass 3: global plot  [hash: {h}] ──")
     run_analysis(config=cfg)

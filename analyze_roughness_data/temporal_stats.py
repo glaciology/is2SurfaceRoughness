@@ -1,14 +1,14 @@
 """
-plot_roughness_spatial.py
-Author: Derek Pickell
+script: plot_roughness_spatial.py
+author: Derek Pickell
 Node-level trend and cell-level seasonal analysis for a single CSV tile.
 
 Trend and seasonal contrast are computed at different spatial scales, reflecting the underlying sampling geometry of ICESat-2.
 
-  TREND  — [m/yr] estimated at the "node" level (~150 m snap grid), then aggregated into GRID_RES cells via robust weighted median.
+  TREND  — [m/yr] estimated at the "node" level (~150 m snap grid), then aggregated into GRID_RES cells via weighted median.
            Each node sits on a single ground track that repeats every ~91 days, providing a time series suitable for slope estimation.
 
-  SEASONAL CONTRAST  — [m] estimated by pooling raw pass-median values from all nodes within a GRID_RES cell, fitting a single
+  SEASONAL DIFFERENCE  — [m] estimated by pooling raw pass-median values from all nodes within a GRID_RES cell, fitting a single
            OLS linear trend to the pooled series, and computing SUMMER minus WINTER bisquare-weighted means on the pooled
            residuals. Pooling across nodes combines multiple ground tracks with different orbital repeat phases, collectively
            spanning the full seasonal cycle that no single node can provide. GRID_RES should be large enough to contain
@@ -17,8 +17,7 @@ Trend and seasonal contrast are computed at different spatial scales, reflecting
 All beams from the same overpass at the same node are collapsed to a single median before any statistical fitting. The aggregation key is
 (x_node, y_node, pass_id): one temporal sample per overpass per node, regardless of how many beams contributed.
 
-Statistical pipeline
---------------------
+Pipeline:
 Node level:
   1.  Snap raw segments to SNAP_M nodes (shared.py: load_and_project).
   2.  Assign globally unique pass IDs via a per-beam time-gap criterion.
@@ -61,15 +60,7 @@ import pandas as pd
 from matplotlib.colors import SymLogNorm
 from pathlib import Path
 from scipy.stats import theilslopes
-
-from shared import (
-    BaseConfig,
-    TRANSFORMER,
-    build_mask,
-    load_and_project,
-    obs_sigma,
-    save_as_geotiff,
-)
+from shared import (BaseConfig, TRANSFORMER, load_and_project, save_as_geotiff)
 
 mpl.rcParams["axes.labelsize"]   = 12
 mpl.rcParams["axes.labelweight"] = "light"
@@ -125,7 +116,7 @@ class Config(BaseConfig):
                                      # individual node uncertainties.  SNR 1.5 ~ 87% one-sided normal CI.
     MIN_NODES_CELL = 10              # minimum nodes per cell for aggregation
 
-    # ── output ────────────────────────────────────────────────────────────────
+    # output
     OUTPUT_DIR     = Path("summaries_temporal")
 
 
@@ -161,7 +152,7 @@ def assign_pass_ids(times, spot_nums, gap_hours = Config.TIME_GAP_HOURS):
 
     return pass_ids
 
-###  STATISTICAL HELPERS  ###
+###STATISTICAL HELPERS  ###
 def bisquare_weights(residuals, k):
     """Tukey bisquare weights; downweights observations far from the median."""
     mad = np.median(np.abs(residuals - np.median(residuals)))

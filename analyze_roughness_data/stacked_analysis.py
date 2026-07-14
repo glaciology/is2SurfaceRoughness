@@ -1,7 +1,8 @@
 """
-roughness_analysis.py:
+script: roughness_analysis.py
+author: Derek Pickell
 Unified analysis combining staacked_analysis.py and spike_contributors_2019.py
-with a single, consistent z-score baseline throughout.
+with a consistent z-score baseline throughout.
 
 Z-score methodology (identical everywhere):
 For each grid cell and target window (year × months):
@@ -46,7 +47,6 @@ import xarray as xr
 from scipy.interpolate import RegularGridInterpolator
 from scipy.stats import spearmanr
 from shapely import vectorized
-
 from shared import derek_colors, TRANSFORMER
 
 warnings.filterwarnings("ignore")
@@ -54,15 +54,12 @@ mpl.rcParams["axes.labelsize"]   = 10
 mpl.rcParams["axes.titlesize"]   = 10
 mpl.rcParams["axes.labelweight"] = "light"
 
-
 ### CONFIG
 GRID_RES = 15_000   # metres
 
 SUMMARY_DIR   = Path(f"./summaries_anomaly/{GRID_RES}")
-ICE_MASK_PATH = Path("/Users/f005cb1/Desktop/RoughnessMaps/dataverse_files/"
-                     "06-PROMICE-2022-IceMask-Nunatak-polygon-v3.gpkg")
-COAST_PATH    = Path("/Users/f005cb1/Desktop/RoughnessMaps/QGreenland_v3.0.0/"
-                     "Reference/Borders/Greenland coastlines 2017/"
+ICE_MASK_PATH = Path("/Users/f005cb1/Desktop/RoughnessMaps/dataverse_files/06-PROMICE-2022-IceMask-Nunatak-polygon-v3.gpkg")
+COAST_PATH    = Path("/Users/f005cb1/Desktop/RoughnessMaps/QGreenland_v3.0.0/Reference/Borders/Greenland coastlines 2017/"
                      "bas_greenland_coastlines.gpkg")
 MAR_DIR       = Path("/Users/f005cb1/Desktop/MAR/")
 
@@ -76,11 +73,12 @@ ALL_YEARS    = list(range(2019, 2026))
 ALL_MONTHS   = list(range(1, 13))
 
 #: z-score quality thresholds:
-MIN_PASSES          = 30
-MIN_TARGET_OBS      = 5     # per-month target so monthly series is possible
+MIN_PASSES          = 30.   # number of overflights needed for total record for a cell to be included in this analysis... kinda irrelevant now
+TARGET_N_PER_MONTH  = 10    # minimum obs in a month for that month-cell to count. This is the key filter number, and sensitive to GRID_RES
+MIN_TARGET_OBS      = TARGET_N_PER_MONTH  # holdover from older code
+SAMPLE_PER_MONTH    = 30#TARGET_N_PER_MONTH#30    # equalised baseline cap per calendar month
 PIXEL_MAD_THRESHOLD = 3.0
-SAMPLE_PER_MONTH    = 30    # equalised baseline cap per calendar month
-RANDOM_SEED         = 42
+RANDOM_SEED         = 47
 
 #: anomaly map:
 CONTRIBUTOR_Z = 0.5
@@ -92,12 +90,6 @@ ELEV_BANDS = {
     "Middle elevation (1000-1500 m)": (1000, 1500, "darkorange"),
     "High elevation (1500+ m)":       (1500, 9999, derek_colors["blue"]),
 }
-
-#: time series:
-CI_N_BOOT     = 500
-CI_LEVEL      = 0.95
-CI_BLOCK_SIZE = 10          # spatial blocks in grid cells (~150 km at 15 km grid)
-TARGET_N_PER_MONTH = 10     # minimum obs in a month for that month-cell to count
 
 # event highlight windows
 EVENT_WINDOWS = [
@@ -147,14 +139,12 @@ def load_global_cells():
 
     return cells
 
-
 def load_elevation_lookup():
     p = SUMMARY_DIR / "cell_elevations.pkl"
     if not p.exists():
         raise FileNotFoundError(f"{p} not found.")
     with open(p, "rb") as f:
         return pickle.load(f)
-
 
 ### GRID AND ICE MASK
 def build_grid(cells):
@@ -180,7 +170,6 @@ def build_ice_mask(X, Y):
     except Exception as e:
         print(f"  Ice mask failed ({e}) — using all cells")
         return np.ones(X.shape, dtype=bool)
-
 
 ### Z SCORE CALC
 def _zscore_for_window(arrays, year, months, rng, min_target_obs=MIN_TARGET_OBS):
@@ -243,7 +232,6 @@ def _zscore_for_window(arrays, year, months, rng, min_target_obs=MIN_TARGET_OBS)
 
     return float((v_target - mu) / sigma), True
 
-
 # Z SCORE GRIDS
 def build_spike_grids(cells, elev_lookup, X, Y, rc):
     """
@@ -270,7 +258,7 @@ def build_spike_grids(cells, elev_lookup, X, Y, rc):
         z, ok = _zscore_for_window(arrays, SPIKE_YEAR, SPIKE_MONTHS, rng, min_target_obs=30)
         if not ok:
             continue
-        z_2019[r, c]    = z
+        z_2019[r, c] = z
         elev_grid[r, c] = elev_lookup.get((ix, iy), np.nan)
 
         # per-year z-scores (same stricter threshold)
@@ -286,7 +274,6 @@ def build_spike_grids(cells, elev_lookup, X, Y, rc):
           f"({100*float((z_2019>CONTRIBUTOR_Z).sum())/max(n_valid,1):.1f}%)")
     
     return z_2019, elev_grid, yr_grids
-
 
 ### HELPERS
 def _load_geo():
@@ -313,20 +300,17 @@ def _map_extent(grid, X, Y, pad=1.5e5):
         return X.min(), X.max(), Y.min(), Y.max()
     rv, cv = np.where(valid)
 
-    return (float(X[0, cv.min()]) - pad, float(X[0, cv.max()]) + pad,
-            float(Y[rv.min(), 0]) - pad, float(Y[rv.max(), 0]) + pad)
+    return (float(X[0, cv.min()]) - pad, float(X[0, cv.max()]) + pad, float(Y[rv.min(), 0]) - pad, float(Y[rv.max(), 0]) + pad)
 
 def _elev_contours(ax, X, Y, elev_grid):
     levels = [1000, 1500]
     colors = [derek_colors["red"], "darkorange"]
     try:
-        ax.contour(X, Y, elev_grid, levels=levels,
-                   colors=colors, linewidths=0.9, alpha=0.75, zorder=4)
+        ax.contour(X, Y, elev_grid, levels=levels, colors=colors, linewidths=0.9, alpha=0.75, zorder=4)
     except Exception:
         pass
 
     return levels, colors
-
 
 ### MAR HELPERS
 def _year_from_name(name):
@@ -372,7 +356,6 @@ def _load_mar_year(varname, months, X, Y, year):
     del arr; gc.collect()
 
     return _mar_regrid(mean_arr, y_mar, x_mar, X, Y)
-
 
 def _mar_zscore_grids(varname, months, X, Y, all_yrs, ice):
     raw = {}
@@ -507,8 +490,8 @@ def _compute_monthly_series(arrays, rng):
         if len(v_base) < 3:
             continue
 
-        mu  = float(np.median(v_base))
-        mad  = float(np.median(np.abs(v_base - mu)))
+        mu = float(np.median(v_base))
+        mad = float(np.median(np.abs(v_base - mu)))
         sigma = (mad / 0.6745) if mad > 0 else float(np.std(v_base, ddof=1))
         if sigma <= 0 or not np.isfinite(sigma):
             continue
@@ -526,41 +509,41 @@ def _compute_monthly_series(arrays, rng):
     
     return pd.Series(monthly_z, index=pd.DatetimeIndex(monthly_idx)).sort_index()
 
-def _block_bootstrap_ci(pixel_df, keys):
-    rng    = np.random.default_rng(RANDOM_SEED)
-    ix_arr = np.array([k[0] for k in keys])
-    iy_arr = np.array([k[1] for k in keys])
-    bix    = (ix_arr // CI_BLOCK_SIZE) * CI_BLOCK_SIZE
-    biy    = (iy_arr // CI_BLOCK_SIZE) * CI_BLOCK_SIZE
-    block_ids = list(set(zip(bix.tolist(), biy.tolist())))
+# def _block_bootstrap_ci(pixel_df, keys):
+#     rng    = np.random.default_rng(RANDOM_SEED)
+#     ix_arr = np.array([k[0] for k in keys])
+#     iy_arr = np.array([k[1] for k in keys])
+#     bix    = (ix_arr // CI_BLOCK_SIZE) * CI_BLOCK_SIZE
+#     biy    = (iy_arr // CI_BLOCK_SIZE) * CI_BLOCK_SIZE
+#     block_ids = list(set(zip(bix.tolist(), biy.tolist())))
 
-    block_to_cols = defaultdict(list)
-    for i, k in enumerate(keys):
-        col = str(k)
-        if col in pixel_df.columns:
-            block_to_cols[(int(bix[i]), int(biy[i]))].append(col)
+#     block_to_cols = defaultdict(list)
+#     for i, k in enumerate(keys):
+#         col = str(k)
+#         if col in pixel_df.columns:
+#             block_to_cols[(int(bix[i]), int(biy[i]))].append(col)
 
-    valid_blocks = [b for b in block_ids if block_to_cols[b]]
-    n_blocks     = len(valid_blocks)
-    if n_blocks < 3:
-        return pixel_df.quantile(0.25, axis=1), pixel_df.quantile(0.75, axis=1)
+#     valid_blocks = [b for b in block_ids if block_to_cols[b]]
+#     n_blocks     = len(valid_blocks)
+#     if n_blocks < 3:
+#         return pixel_df.quantile(0.25, axis=1), pixel_df.quantile(0.75, axis=1)
 
-    boot_medians = []
-    alpha = (1 - CI_LEVEL) / 2
-    for _ in range(CI_N_BOOT):
-        idx  = rng.choice(n_blocks, size=n_blocks, replace=True)
-        cols = []
-        for bi in idx:
-            cols.extend(block_to_cols[valid_blocks[bi]])
-        if cols:
-            boot_medians.append(pixel_df[cols].median(axis=1))
+#     boot_medians = []
+#     alpha = (1 - CI_LEVEL) / 2
+#     for _ in range(CI_N_BOOT):
+#         idx  = rng.choice(n_blocks, size=n_blocks, replace=True)
+#         cols = []
+#         for bi in idx:
+#             cols.extend(block_to_cols[valid_blocks[bi]])
+#         if cols:
+#             boot_medians.append(pixel_df[cols].median(axis=1))
 
-    if not boot_medians:
-        return pixel_df.quantile(0.25, axis=1), pixel_df.quantile(0.75, axis=1)
+#     if not boot_medians:
+#         return pixel_df.quantile(0.25, axis=1), pixel_df.quantile(0.75, axis=1)
 
-    boot_df = pd.DataFrame(boot_medians).T
+#     boot_df = pd.DataFrame(boot_medians).T
 
-    return boot_df.quantile(alpha, axis=1), boot_df.quantile(1 - alpha, axis=1)
+#     return boot_df.quantile(alpha, axis=1), boot_df.quantile(1 - alpha, axis=1)
 
 def plot_timeseries(cells, elev_lookup, rc, ice_mask):
     n_bands = len(ELEV_BANDS)
@@ -590,14 +573,14 @@ def plot_timeseries(cells, elev_lookup, rc, ice_mask):
 
         pixel_df = pd.DataFrame(pix).sort_index()
         med      = pixel_df.median(axis=1)
-        p25      = pixel_df.quantile(0.25, axis=1)
-        p75      = pixel_df.quantile(0.75, axis=1)
+        p25      = pixel_df.quantile(0.40, axis=1)
+        p75      = pixel_df.quantile(0.60, axis=1)
         n_pix    = pixel_df.notna().sum(axis=1)
 
         print(f"    {len(pix):,} cells  |  mean z = {med.mean():+.3f}")
-        print(f"    Block bootstrap CI ({CI_N_BOOT} resamples) ...")
-        pixel_df.columns = [str(k) for k in pixel_df.columns]
-        ci_lo, ci_hi = _block_bootstrap_ci(pixel_df, keys)
+        # print(f"    Block bootstrap CI ({CI_N_BOOT} resamples) ...")
+        # pixel_df.columns = [str(k) for k in pixel_df.columns]
+        # ci_lo, ci_hi = _block_bootstrap_ci(pixel_df, keys)
 
         sea_df = med.to_frame("z")
         sea_df["month"] = sea_df.index.month
@@ -605,7 +588,7 @@ def plot_timeseries(cells, elev_lookup, rc, ice_mask):
 
         band_results[bname] = dict(
             med=med, p25=p25, p75=p75,
-            ci_lo=ci_lo, ci_hi=ci_hi,
+            ci_lo=p25, ci_hi=p75,
             n_pix=n_pix, n_cells=len(pix),
             seasonal=seasonal, color=bcol,
         )
@@ -645,7 +628,7 @@ def plot_timeseries(cells, elev_lookup, rc, ice_mask):
         for _, ev_start, ev_end, ev_col in EVENT_WINDOWS:
             ax_ts.axvspan(ev_start, ev_end, alpha=0.12, color=ev_col, zorder=1)
 
-        ax_ts.fill_between(med.index, ci_lo, ci_hi, alpha=0.25, color=bcol, zorder=2, label=f"{int(CI_LEVEL*100)}% CI")
+        ax_ts.fill_between(med.index, ci_lo, ci_hi, alpha=0.25, color=bcol, zorder=2, label="IQR (p40–p60)")
         ax_ts.plot(med.index, med, color=bcol, lw=2, zorder=3, label="Monthly median")
         ax_ts.axhline(0, color="black", lw=0.7, ls="--", alpha=0.4)
 
@@ -667,8 +650,8 @@ def plot_timeseries(cells, elev_lookup, rc, ice_mask):
         ax_ts.set_title(
             f"{bname}  |  {res['n_cells']:,} cells", fontsize=9)
         ax_ts.tick_params(labelsize=8)
-        if row == 0:
-            ax_ts.legend(fontsize=7, loc="upper left", framealpha=0.85)
+        # if row == 0:
+            # ax_ts.legend(fontsize=7, loc="upper left", framealpha=0.85)
 
         # seasonal climatology bar chart
         bar_cols = [bcol if v >= 0 else "lightgray" for v in sea.values]
@@ -688,11 +671,11 @@ def plot_timeseries(cells, elev_lookup, rc, ice_mask):
         f"ICESat-2 roughness anomaly by elevation band  |  "
         f"{ALL_YEARS[0]}–{ALL_YEARS[-1]}\n"
         f"Seasonally-equalised z-score  |  {GRID_RES//1000} km grid  |  "
-        f"{int(CI_LEVEL*100)}% block bootstrap CI",
+        f"IQR shading (p40–p60)",
         fontsize=9)
     return fig
 
-#  FIGURE 3 — MAR SPEARMAN CORRELATION HEATMAP
+# FIGURE 3 — MAR SPEARMAN CORRELATION HEATMAP
 def _band_spearman(z_rough, z_mar, elev_grid):
     band_items = list(ELEV_BANDS.items())
     r_vals = np.full(len(band_items), np.nan)
@@ -808,6 +791,186 @@ def plot_mar_correlations(z_2019, elev_grid, yr_grids, ice, X, Y):
 
     return fig
 
+#  TABLE 1 - COMMON CELLS, Z SCORE SUMMER COMPARISON
+# def summarize_spike_contributors(yr_grids, ice_mask, z_threshold=CONTRIBUTOR_Z):
+#     """
+#     For each year in yr_grids, count the number of ice-masked cells with
+#     Jul–Sep roughness z-score above z_threshold, and compare to 2019.
+
+#     Only cells with valid z-scores in ALL years are included, for consistency.
+#     """
+#     years = sorted(yr_grids.keys())
+
+#     # build common mask: finite in every year AND inside ice mask
+#     common_mask = ice_mask.copy()
+#     for yr in years:
+#         common_mask = common_mask & np.isfinite(yr_grids[yr])
+#     n_common = int(common_mask.sum())
+#     print(f"\n  Common cell pool: {n_common:,} cells present in all {len(years)} years")
+
+#     rows = []
+#     for yr in years:
+#         grid    = yr_grids[yr]
+#         n_above = int(((grid > z_threshold) & common_mask).sum())
+#         pct     = 100.0 * n_above / n_common if n_common > 0 else np.nan
+#         rows.append({"Year":                    yr, f"Cells > +{z_threshold}σ": n_above, "% above":                 pct})
+
+#     df = pd.DataFrame(rows).set_index("Year")
+
+#     # difference vs 2019
+#     if SPIKE_YEAR in years:
+#         ref_above = df.loc[SPIKE_YEAR, f"Cells > +{z_threshold}σ"]
+#         ref_pct   = df.loc[SPIKE_YEAR, "% above"]
+#         df["Δ cells vs 2019"] = df[f"Cells > +{z_threshold}σ"] - ref_above
+#         df["Δ% vs 2019"]      = (df["% above"] - ref_pct).round(1)
+
+#     df["% above"] = df["% above"].round(1)
+
+#     print(f"\n── Spike contributor summary (n={n_common:,} common cells) ──")
+#     print(df.to_string())
+#     print(f"\nThreshold: z > +{z_threshold}  |  Jul–Sep only  |  ice-masked cells")
+#     print(f"Reference year: {SPIKE_YEAR}  |  denominator fixed across all years")
+
+#     return df, common_mask
+
+def summarize_spike_contributors(yr_grids, ice_mask, z_threshold=CONTRIBUTOR_Z, z_threshold_high=1.5):
+    """
+    For each year in yr_grids, compute summary statistics over the common
+    cell pool (cells with valid z-scores in ALL years).
+
+    Statistics:
+      - count and % of cells above z_threshold (default 0.5)
+      - count and % of cells above z_threshold_high (default 1.5)
+      - mean and median z-score across common cells
+      - 90th percentile z-score
+      - rank by mean z-score
+      - second-order z-score (how anomalous each year's mean is vs the
+        multi-year distribution of annual means)
+    """
+    years = sorted(yr_grids.keys())
+
+    # common mask: finite in every year AND inside ice mask
+    common_mask = ice_mask.copy()
+    for yr in years:
+        common_mask = common_mask & np.isfinite(yr_grids[yr])
+    n_common = int(common_mask.sum())
+    print(f"\n  Common cell pool: {n_common:,} cells present in all {len(years)} years")
+
+    rows = []
+    for yr in years:
+        vals    = yr_grids[yr][common_mask]
+        n_above_lo   = int((vals > z_threshold).sum())
+        n_above_hi   = int((vals > z_threshold_high).sum())
+        rows.append({
+            "Year":                          yr,
+            f"Cells > +{z_threshold}σ":      n_above_lo,
+            f"% > +{z_threshold}σ":          round(100.0 * n_above_lo / n_common, 1),
+            f"Cells > +{z_threshold_high}σ": n_above_hi,
+            f"% > +{z_threshold_high}σ":     round(100.0 * n_above_hi / n_common, 1),
+            "Mean z":                        round(float(np.mean(vals)), 3),
+            "Median z":                      round(float(np.median(vals)), 3),
+            "p90 z":                         round(float(np.percentile(vals, 90)), 3),
+        })
+
+    df = pd.DataFrame(rows).set_index("Year")
+
+    # rank by mean z (1 = most anomalous)
+    df["Rank"] = df["Mean z"].rank(ascending=False).astype(int)
+
+    # second-order z-score: how anomalous is each year's mean vs the multi-year distribution
+    mean_vals = df["Mean z"].values
+    mu_yrs    = float(np.mean(mean_vals))
+    sd_yrs    = float(np.std(mean_vals, ddof=1))
+    if sd_yrs > 0:
+        df["2nd-order z"] = ((df["Mean z"] - mu_yrs) / sd_yrs).round(2)
+    else:
+        df["2nd-order z"] = np.nan
+
+    # delta vs 2019
+    if SPIKE_YEAR in df.index:
+        df[f"Δ% > +{z_threshold}σ vs 2019"] = (
+            df[f"% > +{z_threshold}σ"] - df.loc[SPIKE_YEAR, f"% > +{z_threshold}σ"]
+        ).round(1)
+
+    print(f"\n── Spike contributor summary (n={n_common:,} common cells) ──")
+    print(df.to_string())
+    print(f"\nThresholds: z > +{z_threshold}σ  and  z > +{z_threshold_high}σ  |  Jul–Sep only")
+    print(f"Reference year: {SPIKE_YEAR}  |  denominator fixed across all years")
+    print(f"2nd-order z: standardised across the {len(years)}-year distribution of annual mean z-scores")
+
+    return df, common_mask
+
+def summarize_spike_contributors_2(yr_grids, ice_mask, elev_grid, z_threshold=CONTRIBUTOR_Z, z_threshold_high=1.5):
+    """
+    Two tables:
+      1. Aggregate: all common cells
+      2. Per elevation band: same statistics within each ELEV_BANDS slice
+
+    Only cells with valid z-scores in ALL years are included.
+    """
+    years = sorted(yr_grids.keys())
+
+    # mask
+    common_mask = ice_mask.copy()
+    for yr in years:
+        common_mask = common_mask & np.isfinite(yr_grids[yr])
+    n_common = int(common_mask.sum())
+    print(f"\n  Common cell pool: {n_common:,} cells present in all {len(years)} years")
+
+    # helper
+    def _stats_for_mask(mask):
+        rows = []
+        for yr in years:
+            vals    = yr_grids[yr][mask]
+            n       = len(vals)
+            n_lo    = int((vals > z_threshold).sum())
+            n_hi    = int((vals > z_threshold_high).sum())
+            rows.append({
+                "Year":                          yr,
+                f"Cells > +{z_threshold}σ":      n_lo,
+                f"% > +{z_threshold}σ":          round(100.0 * n_lo / n, 1) if n else np.nan,
+                f"Cells > +{z_threshold_high}σ": n_hi,
+                f"% > +{z_threshold_high}σ":     round(100.0 * n_hi / n, 1) if n else np.nan,
+                "Mean z":                        round(float(np.mean(vals)), 3),
+                "Median z":                      round(float(np.median(vals)), 3),
+                "p90 z":                         round(float(np.percentile(vals, 90)), 3),
+            })
+        df = pd.DataFrame(rows).set_index("Year")
+        df["Rank"] = df["Mean z"].rank(ascending=False).astype(int)
+        mean_vals = df["Mean z"].values
+        mu, sd = float(np.mean(mean_vals)), float(np.std(mean_vals, ddof=1))
+        df["2nd-order z"] = ((df["Mean z"] - mu) / sd).round(2) if sd > 0 else np.nan
+
+        if SPIKE_YEAR in df.index:
+            df[f"Δ% > +{z_threshold}σ vs 2019"] = (df[f"% > +{z_threshold}σ"] - df.loc[SPIKE_YEAR, f"% > +{z_threshold}σ"]).round(1)
+
+        return df
+
+    # Table 1: aggregate
+    df_agg = _stats_for_mask(common_mask)
+    print(f"\n── Table 1: Aggregate  (n={n_common:,} common cells) ──")
+    print(df_agg.to_string())
+
+    # Table 2: elevation band
+    band_dfs = {}
+    for bname, (lo, hi, _) in ELEV_BANDS.items():
+        elev_ok   = (elev_grid >= lo) & (elev_grid < hi) & np.isfinite(elev_grid)
+        band_mask = common_mask & elev_ok
+        n_band    = int(band_mask.sum())
+        if n_band < 5:
+            print(f"\n  Skipping {bname}: only {n_band} common cells")
+            continue
+        df_band = _stats_for_mask(band_mask)
+        band_dfs[bname] = df_band
+        print(f"\n── Table 2: {bname}  (n={n_band:,} cells) ──")
+        print(df_band.to_string())
+
+    print(f"\nThresholds: z > +{z_threshold}σ  and  z > +{z_threshold_high}σ  |  Jul–Sep only")
+    print(f"Reference year: {SPIKE_YEAR}  |  denominator fixed across all years")
+    print(f"2nd-order z: standardised across the {len(years)}-year distribution of annual mean z-scores")
+
+    return df_agg, band_dfs, common_mask
+
 ### MAIN
 def run():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -844,6 +1007,9 @@ def run():
 
     plt.show()
     print(f"\nDone.  All outputs in {OUTPUT_DIR}")
+
+    _, _ = summarize_spike_contributors(yr_grids, ice_mask)
+    _, _, _ = summarize_spike_contributors_2(yr_grids, ice_mask, elev_grid)
 
 
 if __name__ == "__main__":

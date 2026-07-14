@@ -1,5 +1,5 @@
 """
-shared.py
+script: shared.py
 Author: Derek Pickell
 Common configuration base-class, transformer, and utility functions
 shared across all roughness analysis scripts.
@@ -8,10 +8,10 @@ DATA EXTRACTION: /getDataSlideRule:
     run_Greenland.py + get_icesat_roughness.py: get tiled roughness outputs as CSV files
 
 DATA ANALYSIS:
-    plot_roughness_spatial.py   — trend / seasonal maps for single CSV 'title'
-    temporal_map.py             — multi-tile trend pipeline imports plot_roughness_spatial 
-    median_map.py               — median roughness map 
-    error_v_rms.py              — noise model         
+    plot_roughness_spatial.py    — trend / seasonal maps for single CSV 'title'
+    temporal_map*.py             — multi-tile trend pipeline imports plot_roughness_spatial 
+    median_map.py                — median roughness map 
+    error_v_rms.py               — noise model         
 """
 
 from pathlib import Path
@@ -35,6 +35,7 @@ class BaseConfig:
 
     # empirical noise model:  σ_i = NOISE_SLOPE × RMS + NOISE_INTERCEPT
     # used to estimate uncertainties
+    # OLD
     NOISE_SLOPE     = 0.41844
     NOISE_INTERCEPT = -0.00500
     NOISE_FLOOR     = 1e-4
@@ -110,14 +111,12 @@ def build_eroded_geom(geopkg_path, erosion_m: float, cache_path: Path):
             return wkb.loads(fh.read())
 
     print("Building eroded ice-sheet geometry (should only happen once) …")
-    gdf      = gpd.read_file(geopkg_path).to_crs("EPSG:3413")
+    gdf = gpd.read_file(geopkg_path).to_crs("EPSG:3413")
     gdf.geometry = gdf.geometry.make_valid()
     combined = gdf.geometry.union_all().simplify(20, preserve_topology=True)
-    geom     = combined.buffer(-erosion_m, resolution=2)
+    geom = combined.buffer(-erosion_m, resolution=2)
     if geom.is_empty:
-        raise ValueError(
-            f"Eroded ice geometry is empty: ({erosion_m} m)."
-        )
+        raise ValueError(f"Eroded ice geometry is empty: ({erosion_m} m).")
     with open(cache_path, "wb") as fh:
         fh.write(wkb.dumps(geom))
     print("  done.")

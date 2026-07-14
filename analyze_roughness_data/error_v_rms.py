@@ -1,9 +1,9 @@
 """
 script: error_v_rms.py
 author: Derek Pickell
-purpose: ICESat-2 Roughness Noise Model — two-regime version. Data is heteroskedastic... see manuscript for what this means!
+ICESat-2 Roughness Noise Model — two-regime version. Data is heteroskedastic... see manuscript for what this means!
 
-Uses/generates a file called crossover_raw.pkl 
+**Uses/generates a file called crossover_raw.pkl 
 """
 import pickle
 from pathlib import Path
@@ -19,8 +19,8 @@ from shared import TRANSFORMER
 DATA_DIR             = Path("/Users/f005cb1/Documents/GitHub/is2Roughness/testData/")
 OUTPUT_DIR           = Path("./summaries_error_estimate")
 PICKLE_RAW           = OUTPUT_DIR / "crossover_raw.pkl"
-SPATIAL_THRESH       = 5.0 # how far apart data needs to be to calculated the difference in values
-TEMPORAL_THRESH_DAYS = 30. # how far temporally the data needs to be, at a maximum, to calculate differences
+SPATIAL_THRESH       = 5.0  # how far apart data needs to be to calculated the difference in values
+TEMPORAL_THRESH_DAYS = 30.0 # how far temporally the data needs to be, at a maximum, to calculate differences
 
 ### BINNING
 RMS_SPLIT_M          = 0.10   # boundary between smooth and rough regimes (in meters, value of roughness)
@@ -30,12 +30,12 @@ MIN_PAIRS_BIN        = 30     # minimum pairs to include a bin
 WINDOW_DENSE_PCTL    = 95.0   # tail cap
 
 ### STYLE + PLOTTING
-FG      = "#1a1a2e"      # deep navy — text, spines, markers
-GRID_C  = "#ebebeb"      # light grey grid
+FG       = "#1a1a2e"     #  navy — text, spines, markers
+GRID_C   = "#ebebeb"     # light grey - grid
 C_SMOOTH = "#2c6fad"     # steel blue — smooth-regime fit
 C_FULL   = "#b94040"     # brick red  — full-range fit
-C_REF    = "#aaaaaa"     # light grey — identity / extrapolation reference
-COUNT_CMAP = "GnBu"        # cool blue-green sequential; clean on white
+C_REF    = "#aaaaaa"     # light grey — identity
+COUNT_CMAP = "GnBu"        # blue-green sequential
 
 ### DATA LOADING AND PAIR FINDING
 def load_file(path):
@@ -108,11 +108,10 @@ def bin_sigma68(mean_rms, diffs, bin_width, min_pairs, x_max):
         if n < min_pairs:
             continue
         centers.append(float(edges[b] + bin_width / 2))
-        sigmas .append(float(np.percentile(diffs[mask], 68.27)))
-        counts .append(n)
+        sigmas.append(float(np.percentile(diffs[mask], 68.27)))
+        counts.append(n)
 
     return (np.array(centers), np.array(sigmas), np.array(counts))
-
 
 ### FITTING
 def linear(x, m, c):
@@ -166,7 +165,6 @@ def print_mdc_table(fit, x_min, x_max, label="", n_rows=12):
         mdc = 1.96 * s * np.sqrt(2)
         print(f"  {xv:>14.4f}  {s:>10.6f}  {mdc:>12.6f}")
 
-
 ### PLOTTING
 def _style_ax(ax, title=""):
     ax.set_facecolor("white")
@@ -185,21 +183,20 @@ def _style_ax(ax, title=""):
 def _scatter_bins(ax, centers, sigmas, counts):
     """Scatter with count-encoded colour and size."""
     norm = mpl.colors.LogNorm(vmin=max(counts.min(), 1), vmax=counts.max())
-    cmap   = plt.get_cmap(COUNT_CMAP)
+    cmap = plt.get_cmap(COUNT_CMAP)
     colors = cmap(norm(counts))
-    sizes  = 28 + 100 * (counts - counts.min()) / max(float(counts.max() - counts.min()), 1)
+    sizes = 28 + 100 * (counts - counts.min()) / max(float(counts.max() - counts.min()), 1)
     sc = ax.scatter(centers, sigmas, c=colors, s=sizes, edgecolors=FG, linewidths=0.4, zorder=5)
 
     return sc, norm, cmap
 
 def _fit_band(ax, fit, x_arr, color, lw=2.0, ls="-", label=None, alpha_band=0.12):
     """Plot fit line + shaded ±1sigma_fit uncertainty band."""
-    y     = fit["func"](x_arr)
-    m, c  = fit["m"], fit["c"]
+    y = fit["func"](x_arr)
+    m, c = fit["m"], fit["c"]
     dm, dc = fit["perr"][0], fit["perr"][1]
-    y_hi  = (m + dm) * x_arr + (c + dc)
-    y_lo  = np.maximum((m - dm) * x_arr + max(c - dc, 0), 0)
-
+    y_hi = (m + dm) * x_arr + (c + dc)
+    y_lo = np.maximum((m - dm) * x_arr + max(c - dc, 0), 0)
     lbl = label if label is not None else fit["str"]
     ax.plot(x_arr, y, color=color, lw=lw, ls=ls, zorder=6, label=lbl)
     ax.fill_between(x_arr, y_lo, y_hi, color=color, alpha=alpha_band, zorder=3)
@@ -215,9 +212,7 @@ def plot_two_panel(centers_s, sigmas_s, counts_s, fit_smooth, centers_f, sigmas_
 
     # LEFT
     _style_ax(ax_l, title=f"Smooth ice  (RMS < {RMS_SPLIT_M} m)")
-
     sc_l, norm_l, cmap_l = _scatter_bins(ax_l, centers_s, sigmas_s, counts_s)
-
     x_s = np.linspace(0, RMS_SPLIT_M, 300)
     _fit_band(ax_l, fit_smooth, x_s, C_SMOOTH, label=fit_smooth["str"])
 
@@ -243,9 +238,7 @@ def plot_two_panel(centers_s, sigmas_s, counts_s, fit_smooth, centers_f, sigmas_
 
     # RIGHT
     _style_ax(ax_r, title=f"Full range")
-
     sc_r, norm_r, cmap_r = _scatter_bins(ax_r, centers_f, sigmas_f, counts_f)
-
     x_f = np.linspace(0, dense_cap, 500)
     _fit_band(ax_r, fit_full, x_f, C_FULL, label=fit_full["str"] + "  [full]")
 
@@ -292,7 +285,7 @@ def _save_pkl(obj, path):
     path.parent.mkdir(exist_ok=True)
     with open(path, "wb") as fh:
         pickle.dump(obj, fh, protocol=pickle.HIGHEST_PROTOCOL)
-    print(f"  Cached → {path}")
+    print(f"  Cached: {path}")
 
 def _load_pkl(path):
     with open(path, "rb") as fh:
