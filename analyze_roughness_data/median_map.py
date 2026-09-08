@@ -43,17 +43,17 @@ class Config(BaseConfig):
     GRID_RES = 1000                 # meters, if changed, no need to delete parquets
     IDW_K = 5                       # how many neighbors for IDW interpolation
     MAX_INTERP_DIST = 10000         # meters; beyond this, IDW weight = 0
-    SMOOTH_SIGMA = 1             # Gaussian sigma in grid cells
+    SMOOTH_SIGMA = 1                # Gaussian sigma in grid cells
 
     # QUALITY SETTINGS: re-run Pass 2 + 3 if changed
     MIN_PASSES = 8                  # minimum observations per node (currently: using 8 for 500 m)
 
     # COLOR SCALE for plotting
     COLORMAP_SCALE = "log"         # "log" or "quantile"
-    N_QUANTILE_BINS = 25            # only used when COLORMAP_SCALE = "quantile"
+    N_QUANTILE_BINS = 25           # only used when COLORMAP_SCALE = "quantile"
 
     # DATA SOURCE
-    DATA_DIR = Path("/Users/f005cb1/Documents/Github/is2Roughness/testData/")
+    DATA_DIR = Path("./testData/") # all data csvs should go in here... 
 
     VALUE_OF_INTEREST = "RMS" #"RMS" #rms_sub_median #mean_surface #semivariogram_range
 

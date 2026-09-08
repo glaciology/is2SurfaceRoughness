@@ -1,5 +1,5 @@
 """
-script: plot_roughness_spatial.py
+script: temporal_stats.py
 author: Derek Pickell
 Node-level trend and cell-level seasonal analysis for a single CSV tile.
 
@@ -646,5 +646,5 @@ def run_single_analysis(path, config=Config):
 
 ###  MAIN  ###
 if __name__ == "__main__":
-    path = ("/Users/f005cb1/Documents/Github/is2Roughness/testData/region_052_segments_combined.csv")
+    path = ("./testData/region_052_segments_combined.csv")
     run_single_analysis(path)

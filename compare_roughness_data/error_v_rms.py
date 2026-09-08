@@ -16,7 +16,7 @@ from scipy.spatial import cKDTree
 from shared import TRANSFORMER
 
 ### CONFIGURATION ###
-DATA_DIR             = Path("/Users/f005cb1/Documents/GitHub/is2Roughness/testData/")
+DATA_DIR             = Path("./testData/")
 OUTPUT_DIR           = Path("./summaries_error_estimate")
 PICKLE_RAW           = OUTPUT_DIR / "crossover_raw.pkl"
 SPATIAL_THRESH       = 5.0  # how far apart data needs to be to calculated the difference in values

@@ -54,12 +54,12 @@ class BaseConfig:
     }
 
     # ice-mask shapefile (PROMICE 2022) 
-    GEOPKG_PATH = Path("/Users/f005cb1/Desktop/RoughnessMaps/dataverse_files/06-PROMICE-2022-IceMask-Nunatak-polygon-v3.gpkg") # credit: PROMICE, Luetzenburg 2026
+    GEOPKG_PATH = Path("./06-PROMICE-2022-IceMask-Nunatak-polygon-v3.gpkg") # credit: PROMICE, Luetzenburg 2026
     ICE_MASK_EROSION_M = 200        # meters to erode inward from ice margin: to account for uncertainty in ice margins and misidentification of ice vs land photons
-    CACHE_GEOM = CACHE_GEOM = Path("/Users/f005cb1/Documents/Github/is2Roughness/geom_inner_cache.wkb") # eroded ice mask, cached for faster loading
+    CACHE_GEOM = CACHE_GEOM = Path("./geom_inner_cache.wkb") # eroded ice mask, cached for faster loading
 
     # coastline basemap 
-    COASTLINE_PATH = Path("/Users/f005cb1/Desktop/RoughnessMaps/QGreenland_v3.0.0/Reference/Borders/Greenland coastlines 2017/bas_greenland_coastlines.gpkg") # credit: QGreenland v3
+    COASTLINE_PATH = Path("./QGreenland_v3.0.0/Reference/Borders/Greenland coastlines 2017/bas_greenland_coastlines.gpkg") # credit: QGreenland v3
 
     # lazy-loaded singletons 
     _GDF        = None
@@ -204,9 +204,7 @@ def load_and_project(path, config=BaseConfig):
         df["y_node"] = (np.floor(df["y"] / s) * s + s // 2).astype(np.int32)
 
     # derived time
-    df["dec_year"] = (
-        df["time"].dt.year + (df["time"].dt.dayofyear - 1) / 365.25
-    ).astype(np.float32)
+    df["dec_year"] = (df["time"].dt.year + (df["time"].dt.dayofyear - 1) / 365.25).astype(np.float32)
     df["month"] = df["time"].dt.month.astype(np.int8)
     df["year"]  = df["time"].dt.year.astype(np.int16)
 

@@ -1,23 +1,23 @@
 """
-script: roughness_analysis.py
+script: stacked_analysis.py
 author: Derek Pickell
 Unified analysis combining staacked_analysis.py and spike_contributors_2019.py
 with a consistent z-score baseline throughout.
 
-Z-score methodology (identical everywhere):
-For each grid cell and target window (year × months):
+Z-score methodology (identical everywhere for roughness and MAR data):
+For each grid cell and target window (year x months):
   1. MAD outlier removal on the full record.
   2. Seasonally-equalised baseline: exclude the target window, then
      subsample up to SAMPLE_PER_MONTH observations per calendar month
      so every month contributes equally regardless of ICESat-2 orbit density.
-  3. z = (median of target window − baseline median) / baseline MAD-σ
+  3. z = (median of target window - baseline median) / baseline MAD-σ
 
 This is the spike_contributors baseline applied universally — the monthly
 time series in staacked_analysis.py used a raw (unequalized) baseline which
 biased z=0 toward winter. Here z=0 is the true all-season average.
 
 Three figures:
-  1. 2019 summer (Jul–Sep) roughness anomaly map
+  1. 2019 summer (Jul-Sep) roughness anomaly map
   2. Monthly roughness anomaly time series by elevation band
      (one z-score per cell per month, stacked + block-bootstrap CI)
   3. MAR Spearman correlation heatmaps
@@ -25,8 +25,6 @@ Three figures:
 
 Outputs go to OUTPUT_DIR (separate from original script outputs).
 """
-
-from __future__ import annotations
 
 import gc
 import pickle
@@ -58,10 +56,10 @@ mpl.rcParams["axes.labelweight"] = "light"
 GRID_RES = 15_000   # metres
 
 SUMMARY_DIR   = Path(f"./summaries_anomaly/{GRID_RES}")
-ICE_MASK_PATH = Path("/Users/f005cb1/Desktop/RoughnessMaps/dataverse_files/06-PROMICE-2022-IceMask-Nunatak-polygon-v3.gpkg")
-COAST_PATH    = Path("/Users/f005cb1/Desktop/RoughnessMaps/QGreenland_v3.0.0/Reference/Borders/Greenland coastlines 2017/"
+ICE_MASK_PATH = Path("./dataverse_files/06-PROMICE-2022-IceMask-Nunatak-polygon-v3.gpkg")
+COAST_PATH    = Path("./QGreenland_v3.0.0/Reference/Borders/Greenland coastlines 2017/"
                      "bas_greenland_coastlines.gpkg")
-MAR_DIR       = Path("/Users/f005cb1/Desktop/MAR/")
+MAR_DIR       = Path("./MAR/")
 
 # Separate output dir — will NOT overwrite original script outputs
 OUTPUT_DIR = Path("./unified_analysis_output/")
@@ -791,48 +789,6 @@ def plot_mar_correlations(z_2019, elev_grid, yr_grids, ice, X, Y):
 
     return fig
 
-#  TABLE 1 - COMMON CELLS, Z SCORE SUMMER COMPARISON
-# def summarize_spike_contributors(yr_grids, ice_mask, z_threshold=CONTRIBUTOR_Z):
-#     """
-#     For each year in yr_grids, count the number of ice-masked cells with
-#     Jul–Sep roughness z-score above z_threshold, and compare to 2019.
-
-#     Only cells with valid z-scores in ALL years are included, for consistency.
-#     """
-#     years = sorted(yr_grids.keys())
-
-#     # build common mask: finite in every year AND inside ice mask
-#     common_mask = ice_mask.copy()
-#     for yr in years:
-#         common_mask = common_mask & np.isfinite(yr_grids[yr])
-#     n_common = int(common_mask.sum())
-#     print(f"\n  Common cell pool: {n_common:,} cells present in all {len(years)} years")
-
-#     rows = []
-#     for yr in years:
-#         grid    = yr_grids[yr]
-#         n_above = int(((grid > z_threshold) & common_mask).sum())
-#         pct     = 100.0 * n_above / n_common if n_common > 0 else np.nan
-#         rows.append({"Year":                    yr, f"Cells > +{z_threshold}σ": n_above, "% above":                 pct})
-
-#     df = pd.DataFrame(rows).set_index("Year")
-
-#     # difference vs 2019
-#     if SPIKE_YEAR in years:
-#         ref_above = df.loc[SPIKE_YEAR, f"Cells > +{z_threshold}σ"]
-#         ref_pct   = df.loc[SPIKE_YEAR, "% above"]
-#         df["Δ cells vs 2019"] = df[f"Cells > +{z_threshold}σ"] - ref_above
-#         df["Δ% vs 2019"]      = (df["% above"] - ref_pct).round(1)
-
-#     df["% above"] = df["% above"].round(1)
-
-#     print(f"\n── Spike contributor summary (n={n_common:,} common cells) ──")
-#     print(df.to_string())
-#     print(f"\nThreshold: z > +{z_threshold}  |  Jul–Sep only  |  ice-masked cells")
-#     print(f"Reference year: {SPIKE_YEAR}  |  denominator fixed across all years")
-
-#     return df, common_mask
-
 def summarize_spike_contributors(yr_grids, ice_mask, z_threshold=CONTRIBUTOR_Z, z_threshold_high=1.5):
     """
     For each year in yr_grids, compute summary statistics over the common
@@ -1010,7 +966,6 @@ def run():
 
     _, _ = summarize_spike_contributors(yr_grids, ice_mask)
     _, _, _ = summarize_spike_contributors_2(yr_grids, ice_mask, elev_grid)
-
 
 if __name__ == "__main__":
     run()

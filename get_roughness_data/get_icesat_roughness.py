@@ -1,5 +1,5 @@
 """
-script: roughness_pipeline.py
+script: get_icesat_roughness.py
 author: Derek Pickell
 purpose: get ICESat-2 surface roughness using algorithm described in manuscript. 
 run: use this script to derive roughness for a certain single region (defined by geojson), or 
@@ -629,7 +629,7 @@ def run_parallel_granule_processing(name, detrend_length, time_start, time_end, 
 
 if __name__ == "__main__":
     # settings
-    region_file    = "/Users/username/Desktop/lakes_ji_test.geojson" # must be geojson
+    region_file    = "lakes_ji_test.geojson" # must be geojson
     detrend_length            = 200 # meters
     time_start                = "2018-10-10"
     time_end                  = "2026-01-10"
