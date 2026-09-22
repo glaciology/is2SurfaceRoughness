@@ -428,7 +428,7 @@ def process_dem(dem_path, raw_lines, raw_names, track_cache, bounds_cache, csv_m
         "strip_date": strip_date.date().isoformat(),
         "passes_qc": passes_qc,
         # IS2-side quality columns, carried through unused from the CSV so
-        # they can be filtered on later without re-running DEM sampling --
+        # they can be filtered on later without re-running DEM sampling
         # see roughness_pipeline.py for what each one means:
         "spot_num": _get_col(df, "spot_num"),
         "cnf_used": _get_col(df, "cnf_used", default=""),
@@ -680,9 +680,6 @@ def plot_and_score(csv_path, out_path, noise_floor_m=DEM_NOISE_FLOOR_M, inset_ma
     lim = max(x_all.max(), y_all.max()) * 1.05
 
     fig, ax = plt.subplots(figsize=(8, 8.5))
-    # reserve figure-level margin above the axes for the suptitle + legend,
-    # instead of letting tight_layout guess -- this is what was causing the
-    # legend to collide with the title
     fig.subplots_adjust(top=0.84, bottom=0.08)
 
     _draw_scatter_layer(ax, passed, below_mask, by_bin, noise_floor_m, lim)
@@ -693,17 +690,9 @@ def plot_and_score(csv_path, out_path, noise_floor_m=DEM_NOISE_FLOOR_M, inset_ma
     ax.set_xlabel("ICESat-2 ATL03 Roughness (RMS) (m)")
     ax.set_ylabel("DEM Roughness (RMS) (m)")
 
-    # figure-level title, placed well above the legend row so the two never
-    # overlap regardless of legend height
     fig.suptitle("ICESat-2 vs. DEM-derived roughness (QC-passed)", fontsize=13,
                  color=derek_colors["black"], y=0.97)
 
-    # proxy handles for the legend -- _draw_scatter_layer doesn't label its
-    # artists (it's shared with the unlabeled inset), so build the legend
-    # here instead. alpha is forced to 1 on these regardless of the actual
-    # scatter alpha (kept low on the plot itself so dense overlapping points
-    # don't just paint one solid blob) -- otherwise the legend swatches
-    # inherit that low alpha and the color is almost impossible to see.
     legend_handles = [
         plt.Line2D([], [], ls="--", color=derek_colors["black"], lw=1.2, alpha=1, label="1:1"),
         plt.Line2D([], [], ls=":", color=derek_colors["red"], lw=1.3, alpha=1,
@@ -719,11 +708,6 @@ def plot_and_score(csv_path, out_path, noise_floor_m=DEM_NOISE_FLOOR_M, inset_ma
               ncol=2, fontsize=11, facecolor="white", edgecolor="#dddddd",
               labelcolor=derek_colors["black"])
 
-    # zoomed inset: 0 to inset_max_m on both axes, so the low-roughness
-    # region (where the noise floor and correlation breakdown both live)
-    # isn't squashed into a small corner of the full-range plot. Placed
-    # top-left (sparse: high dem_rms / low is2_rms is an off-diagonal,
-    # low-density combination given the strong overall correlation).
     axins = ax.inset_axes([0.06, 0.55, 0.40, 0.40])
     _draw_scatter_layer(axins, passed, below_mask, by_bin, noise_floor_m, inset_max_m)
     axins.set_xlim(0, inset_max_m)
@@ -732,8 +716,6 @@ def plot_and_score(csv_path, out_path, noise_floor_m=DEM_NOISE_FLOOR_M, inset_ma
     axins.tick_params(labelsize=7)
     axins.set_title(f"0\u2013{inset_max_m*100:.0f} cm", fontsize=8, color=derek_colors["black"])
 
-    # connector styling: thin, dashed, low-alpha -- the default solid,
-    # heavy connector lines are what looked messy
     rect, connectors = ax.indicate_inset_zoom(axins, edgecolor=derek_colors["black"])
     rect.set_linewidth(0.8)
     rect.set_alpha(0.5)
@@ -757,7 +739,6 @@ def plot_and_score(csv_path, out_path, noise_floor_m=DEM_NOISE_FLOOR_M, inset_ma
             color=derek_colors["black"],
             bbox=dict(boxstyle="round", facecolor="white", edgecolor="#dddddd", alpha=0.9))
 
-    # no tight_layout here -- it would undo the subplots_adjust margins set above
     plt.savefig(out_path, dpi=150)
     plt.show()
     print(f"\nSaved scatter plot to {out_path}")

@@ -4,7 +4,7 @@ author: Derek Pickell
 Unified analysis combining staacked_analysis.py and spike_contributors_2019.py
 with a consistent z-score baseline throughout.
 
-Z-score methodology (identical everywhere for roughness and MAR data):
+Z-score methodology (identical for roughness and MAR data):
 For each grid cell and target window (year x months):
   1. MAD outlier removal on the full record.
   2. Seasonally-equalised baseline: exclude the target window, then
@@ -13,7 +13,7 @@ For each grid cell and target window (year x months):
   3. z = (median of target window - baseline median) / baseline MAD-σ
 
 This is the spike_contributors baseline applied universally — the monthly
-time series in staacked_analysis.py used a raw (unequalized) baseline which
+time series in stacked_analysis.py used a raw (unequalized) baseline which
 biased z=0 toward winter. Here z=0 is the true all-season average.
 
 Three figures:
@@ -74,7 +74,7 @@ ALL_MONTHS   = list(range(1, 13))
 MIN_PASSES          = 30.   # number of overflights needed for total record for a cell to be included in this analysis... kinda irrelevant now
 TARGET_N_PER_MONTH  = 10    # minimum obs in a month for that month-cell to count. This is the key filter number, and sensitive to GRID_RES
 MIN_TARGET_OBS      = TARGET_N_PER_MONTH  # holdover from older code
-SAMPLE_PER_MONTH    = 30#TARGET_N_PER_MONTH#30    # equalised baseline cap per calendar month
+SAMPLE_PER_MONTH    = 30    #TARGET_N_PER_MONTH#30    # equalised baseline cap per calendar month
 PIXEL_MAD_THRESHOLD = 3.0
 RANDOM_SEED         = 47
 
@@ -507,42 +507,6 @@ def _compute_monthly_series(arrays, rng):
     
     return pd.Series(monthly_z, index=pd.DatetimeIndex(monthly_idx)).sort_index()
 
-# def _block_bootstrap_ci(pixel_df, keys):
-#     rng    = np.random.default_rng(RANDOM_SEED)
-#     ix_arr = np.array([k[0] for k in keys])
-#     iy_arr = np.array([k[1] for k in keys])
-#     bix    = (ix_arr // CI_BLOCK_SIZE) * CI_BLOCK_SIZE
-#     biy    = (iy_arr // CI_BLOCK_SIZE) * CI_BLOCK_SIZE
-#     block_ids = list(set(zip(bix.tolist(), biy.tolist())))
-
-#     block_to_cols = defaultdict(list)
-#     for i, k in enumerate(keys):
-#         col = str(k)
-#         if col in pixel_df.columns:
-#             block_to_cols[(int(bix[i]), int(biy[i]))].append(col)
-
-#     valid_blocks = [b for b in block_ids if block_to_cols[b]]
-#     n_blocks     = len(valid_blocks)
-#     if n_blocks < 3:
-#         return pixel_df.quantile(0.25, axis=1), pixel_df.quantile(0.75, axis=1)
-
-#     boot_medians = []
-#     alpha = (1 - CI_LEVEL) / 2
-#     for _ in range(CI_N_BOOT):
-#         idx  = rng.choice(n_blocks, size=n_blocks, replace=True)
-#         cols = []
-#         for bi in idx:
-#             cols.extend(block_to_cols[valid_blocks[bi]])
-#         if cols:
-#             boot_medians.append(pixel_df[cols].median(axis=1))
-
-#     if not boot_medians:
-#         return pixel_df.quantile(0.25, axis=1), pixel_df.quantile(0.75, axis=1)
-
-#     boot_df = pd.DataFrame(boot_medians).T
-
-#     return boot_df.quantile(alpha, axis=1), boot_df.quantile(1 - alpha, axis=1)
-
 def plot_timeseries(cells, elev_lookup, rc, ice_mask):
     n_bands = len(ELEV_BANDS)
     fig = plt.figure(facecolor="white")
@@ -576,9 +540,6 @@ def plot_timeseries(cells, elev_lookup, rc, ice_mask):
         n_pix    = pixel_df.notna().sum(axis=1)
 
         print(f"    {len(pix):,} cells  |  mean z = {med.mean():+.3f}")
-        # print(f"    Block bootstrap CI ({CI_N_BOOT} resamples) ...")
-        # pixel_df.columns = [str(k) for k in pixel_df.columns]
-        # ci_lo, ci_hi = _block_bootstrap_ci(pixel_df, keys)
 
         sea_df = med.to_frame("z")
         sea_df["month"] = sea_df.index.month

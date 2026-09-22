@@ -4,18 +4,18 @@ author: Derek Pickell
 Multi-tile trend and seasonal pipeline for all of Greenland.
 
 Overview:
-Pass 1  — per tile: load CSV (project, ice mask) -> snap to nodes.
+Pass 1 -— per tile: load CSV (project, ice mask) -> snap to nodes.
     Output : <OUTPUT_DIR>/<tile>_nodes.parquet
     Columns: x_node, y_node, x, y, time, spot_num, dec_year, month,
              year, VALUE_OF_INTEREST
     Re-run : delete parquet if raw CSVs change.
 
-Pass 2  — per tile: load _nodes.parquet -> assign pass IDs ->
+Pass 2 -— per tile: load _nodes.parquet -> assign pass IDs ->
     compute node-level Theil-Sen trends -> aggregate to GRID_RES cells
     (trend, seasonal contrast, empirical uncertainties) -> save results.
     Output : <OUTPUT_DIR>/<tile>_node_stats_<hash>.parquet
              <OUTPUT_DIR>/<tile>_cell_stats_<hash>.parquet
-    Hash   : short SHA-256 of all statistical + grid parameters that
+    Hash   : all statistical + grid parameters that
              affect Pass 2 output (TIME_GAP_HOURS, MIN_PASSES,
              MIN_SPAN_YR, MAD_THRESHOLD, MIN_PAIR_DT_YR, BISQUARE_K,
              MIN_SEASON_TRACKS, SNR_THRESHOLD, MIN_NODES_CELL,
